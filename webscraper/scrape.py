@@ -38,7 +38,7 @@ def cfg_scraper(key: str, value: str | int) -> None:
 
 
 async def run_playwright(
-    playwright: async_playwright.async_api.AsyncApi,
+    playwright: async_playwright,
     url: str,
     save_images: Optional[str] = None,
     headless: bool = True,
