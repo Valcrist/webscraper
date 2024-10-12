@@ -1,4 +1,4 @@
-from .scrape import (
+from .base import (
     cfg_scraper,
     run_playwright,
     run_scraper,
