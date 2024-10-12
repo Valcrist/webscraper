@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="webscraper",
-    version="0.1.004",
+    version="0.1.005",
     packages=find_packages(),
     install_requires=[
         "playwright",

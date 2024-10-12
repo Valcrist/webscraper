@@ -43,9 +43,13 @@ async def run_playwright(
     save_images: Optional[str] = None,
     headless: bool = True,
     no_close: bool = False,
+    firefox: bool = False,
 ) -> BeautifulSoup | None:
     try:
-        browser = await playwright.chromium.launch(headless=headless)
+        if not firefox:
+            browser = await playwright.chromium.launch(headless=headless)
+        else:
+            browser = await playwright.firefox.launch(headless=headless)
         context = await browser.new_context()
         page = await context.new_page()
         await page.add_init_script(  # Enable stealth mode
@@ -53,7 +57,7 @@ async def run_playwright(
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => false,
             });
-        """
+            """
         )
 
         async def intercept(
@@ -93,20 +97,24 @@ async def run_playwright(
 
 
 async def run_scraper(
-    url: str, save_images: Optional[str] = None
+    url: str, save_images: Optional[str] = None, firefox: bool = False
 ) -> BeautifulSoup | None:
     printc(f"Scraping: {url} ..", "black", "magenta")
     async with async_playwright() as playwright:
-        return await run_playwright(playwright, url, save_images=save_images)
+        return await run_playwright(
+            playwright, url, save_images=save_images, firefox=firefox
+        )
 
 
-def load_from_cache(path: str, no_exp: bool = False) -> BeautifulSoup | None:
+def load_from_cache(path: str, exp: int = _CACHE_EXP) -> BeautifulSoup | None:
+    if exp <= 0:
+        return None
     file_path = f"{path}.pkl"
     try:
         if os.path.exists(file_path):
             with open(file_path, "rb") as f:
                 timestamp, soup = pickle.load(f)
-                if no_exp or time.time() - timestamp < _CACHE_EXP:
+                if time.time() - timestamp < exp:
                     printc(f"Loaded from cache: {file_path}", "black", "blue")
                     return soup
     except Exception as e:
@@ -124,7 +132,7 @@ def save_to_cache(path: str, soup: BeautifulSoup) -> None:
 
 
 def scrape(
-    url: str, save_images: bool = True, no_exp: bool = False
+    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
 ) -> tuple[BeautifulSoup | None, str, str]:
     debug(url, "URL to scrape", lvl=2)
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
@@ -133,9 +141,9 @@ def scrape(
     )
     os.makedirs(cache_path, exist_ok=True)
     debug(cache_path, "cache path", lvl=2)
-    soup = load_from_cache(cache_path, no_exp=no_exp)
+    soup = load_from_cache(cache_path, exp=exp)
     if soup is None:
-        soup = asyncio.run(run_scraper(url, save_images=image_path))
+        soup = asyncio.run(run_scraper(url, save_images=image_path, firefox=firefox))
         if soup:
             save_to_cache(cache_path, soup)
     if save_images:
