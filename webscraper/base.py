@@ -107,14 +107,14 @@ async def run_scraper(
 
 
 def load_from_cache(path: str, exp: int = _CACHE_EXP) -> BeautifulSoup | None:
-    if exp <= 0:
+    if exp == 0:
         return None
     file_path = f"{path}.pkl"
     try:
         if os.path.exists(file_path):
             with open(file_path, "rb") as f:
                 timestamp, soup = pickle.load(f)
-                if time.time() - timestamp < exp:
+                if exp < 0 or time.time() - timestamp < exp:
                     printc(f"Loaded from cache: {file_path}", "black", "blue")
                     return soup
     except Exception as e:
