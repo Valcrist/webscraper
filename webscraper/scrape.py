@@ -143,9 +143,9 @@ def scrape(
     return soup, cache_path
 
 
-def text_from_element_class(soup: BeautifulSoup, elt: str, cls: str) -> str:
+def get_text_from_element_id(soup: BeautifulSoup, elt: str, id: str) -> str:
     try:
-        item = soup.find(elt, class_=cls)
+        item = soup.find(elt, id=id)
         if item:
             return item.get_text(strip=True)
     except Exception as e:
@@ -153,9 +153,9 @@ def text_from_element_class(soup: BeautifulSoup, elt: str, cls: str) -> str:
     return ""
 
 
-def text_from_element_id(soup: BeautifulSoup, elt: str, id: str) -> str:
+def get_text_from_element_class(soup: BeautifulSoup, elt: str, cls: str) -> str:
     try:
-        item = soup.find(elt, id=id)
+        item = soup.find(elt, class_=cls)
         if item:
             return item.get_text(strip=True)
     except Exception as e:
