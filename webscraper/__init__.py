@@ -5,6 +5,7 @@ from .base import (
     load_from_cache,
     save_to_cache,
     scrape,
+    async_scrape,
     get_text_from_element_id,
     get_text_from_element_class,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "load_from_cache",
     "save_to_cache",
     "scrape",
+    "async_scrape",
     "get_text_from_element_id",
     "get_text_from_element_class",
 ]
