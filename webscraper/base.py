@@ -151,6 +151,26 @@ def scrape(
     return soup, cache_path
 
 
+async def async_scrape(
+    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
+) -> tuple[BeautifulSoup | None, str, str]:
+    debug(url, "URL to scrape", lvl=2)
+    cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
+    image_path = (
+        fs.build_path([_CACHE_DIR], basedir=_MEDIA_DIR) if save_images else None
+    )
+    os.makedirs(cache_path, exist_ok=True)
+    debug(cache_path, "cache path", lvl=2)
+    soup = load_from_cache(cache_path, exp=exp)
+    if soup is None:
+        soup = await run_scraper(url, save_images=image_path, firefox=firefox)
+        if soup:
+            save_to_cache(cache_path, soup)
+    if save_images:
+        return soup, cache_path, image_path
+    return soup, cache_path
+
+
 def get_text_from_element_id(soup: BeautifulSoup, elt: str, id: str) -> str:
     try:
         item = soup.find(elt, id=id)
