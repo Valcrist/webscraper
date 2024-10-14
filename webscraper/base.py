@@ -99,7 +99,7 @@ async def run_playwright(
 async def run_scraper(
     url: str, save_images: Optional[str] = None, firefox: bool = False
 ) -> BeautifulSoup | None:
-    printc(f"Scraping: {url} ..", "bright_magenta")
+    printc(f"Scraping: {url} ..", "bright_magenta", pad=0, no_nl=True)
     async with async_playwright() as playwright:
         return await run_playwright(
             playwright, url, save_images=save_images, firefox=firefox
@@ -115,7 +115,7 @@ def load_from_cache(path: str, exp: int = _CACHE_EXP) -> BeautifulSoup | None:
             with open(file_path, "rb") as f:
                 timestamp, soup = pickle.load(f)
                 if exp < 0 or time.time() - timestamp < exp:
-                    printc(f"Loaded from cache: {file_path}", "bright_blue")
+                    print(f"Loaded from cache: {file_path}")
                     return soup
     except Exception as e:
         err(e)
@@ -134,13 +134,13 @@ def save_to_cache(path: str, soup: BeautifulSoup) -> None:
 def scrape(
     url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
 ) -> tuple[BeautifulSoup | None, str, str]:
-    debug(url, "URL to scrape", lvl=2)
+    print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
     image_path = (
         fs.build_path([_CACHE_DIR], basedir=_MEDIA_DIR) if save_images else None
     )
     os.makedirs(cache_path, exist_ok=True)
-    debug(cache_path, "cache path", lvl=2)
+    debug(cache_path, "cache path", lvl=3)
     soup = load_from_cache(cache_path, exp=exp)
     if soup is None:
         soup = asyncio.run(run_scraper(url, save_images=image_path, firefox=firefox))
@@ -154,13 +154,13 @@ def scrape(
 async def async_scrape(
     url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
 ) -> tuple[BeautifulSoup | None, str, str]:
-    debug(url, "URL to scrape", lvl=2)
+    print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
     image_path = (
         fs.build_path([_CACHE_DIR], basedir=_MEDIA_DIR) if save_images else None
     )
     os.makedirs(cache_path, exist_ok=True)
-    debug(cache_path, "cache path", lvl=2)
+    debug(cache_path, "cache path", lvl=3)
     soup = load_from_cache(cache_path, exp=exp)
     if soup is None:
         soup = await run_scraper(url, save_images=image_path, firefox=firefox)
