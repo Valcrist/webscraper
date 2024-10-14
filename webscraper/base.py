@@ -99,7 +99,7 @@ async def run_playwright(
 async def run_scraper(
     url: str, save_images: Optional[str] = None, firefox: bool = False
 ) -> BeautifulSoup | None:
-    printc(f"Scraping: {url} ..", "black", "magenta")
+    printc(f"Scraping: {url} ..", "bright_magenta")
     async with async_playwright() as playwright:
         return await run_playwright(
             playwright, url, save_images=save_images, firefox=firefox
@@ -115,7 +115,7 @@ def load_from_cache(path: str, exp: int = _CACHE_EXP) -> BeautifulSoup | None:
             with open(file_path, "rb") as f:
                 timestamp, soup = pickle.load(f)
                 if exp < 0 or time.time() - timestamp < exp:
-                    printc(f"Loaded from cache: {file_path}", "black", "blue")
+                    printc(f"Loaded from cache: {file_path}", "bright_blue")
                     return soup
     except Exception as e:
         err(e)
