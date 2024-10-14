@@ -115,7 +115,7 @@ def load_from_cache(path: str, exp: int = _CACHE_EXP) -> BeautifulSoup | None:
             with open(file_path, "rb") as f:
                 timestamp, soup = pickle.load(f)
                 if exp < 0 or time.time() - timestamp < exp:
-                    printc(f"Loaded from cache: {file_path}", "bright_blue")
+                    printc(f"Loaded from cache: {file_path}", "bright_green")
                     return soup
     except Exception as e:
         err(e)
