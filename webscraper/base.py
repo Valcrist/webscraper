@@ -43,7 +43,7 @@ async def run_playwright(
     save_images: Optional[str] = None,
     headless: bool = True,
     no_close: bool = False,
-    firefox: bool = False,
+    firefox: bool = True,
 ) -> BeautifulSoup | None:
     try:
         if not firefox:
@@ -97,7 +97,7 @@ async def run_playwright(
 
 
 async def run_scraper(
-    url: str, save_images: Optional[str] = None, firefox: bool = False
+    url: str, save_images: Optional[str] = None, firefox: bool = True
 ) -> BeautifulSoup | None:
     printc(f"Scraping: {url} ..", "bright_magenta", pad=0, no_nl=True)
     async with async_playwright() as playwright:
@@ -132,7 +132,7 @@ def save_to_cache(path: str, soup: BeautifulSoup) -> None:
 
 
 def scrape(
-    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
+    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = True
 ) -> tuple[BeautifulSoup | None, str, str]:
     print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
@@ -152,7 +152,7 @@ def scrape(
 
 
 async def async_scrape(
-    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = False
+    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = True
 ) -> tuple[BeautifulSoup | None, str, str]:
     print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
