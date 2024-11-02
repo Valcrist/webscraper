@@ -44,9 +44,11 @@ async def run_playwright(
     playwright: async_playwright,
     url: str,
     save_images: Optional[str] = None,
+    firefox: bool = True,
     headless: bool = True,
     no_close: bool = False,
-    firefox: bool = True,
+    use_cookies: bool = False,
+    page_timeout: int = 90000,
 ) -> BeautifulSoup | None:
     try:
         if not firefox:
@@ -83,16 +85,17 @@ async def run_playwright(
                 timezone_id="Asia/Singapore",
             )
 
-        domain = urlparse(url).netloc
-        cookies_file = Path(f"cache/_cookies/{domain}_cookies.json")
-        cookies_file.parent.mkdir(exist_ok=True)
-        if cookies_file.exists():
-            try:
-                with open(cookies_file) as f:
-                    cookies = json.load(f)
-                await context.add_cookies(cookies)
-            except Exception as e:
-                warn(f"Failed to load cookies: {e}")
+        if use_cookies:
+            domain = urlparse(url).netloc
+            cookies_file = Path(f"cache/_cookies/{domain}_cookies.json")
+            cookies_file.parent.mkdir(exist_ok=True)
+            if cookies_file.exists():
+                try:
+                    with open(cookies_file) as f:
+                        cookies = json.load(f)
+                    await context.add_cookies(cookies)
+                except Exception as e:
+                    warn(f"Failed to load cookies: {e}")
 
         page = await context.new_page()
         # Enhanced stealth mode
@@ -137,21 +140,20 @@ async def run_playwright(
         if save_images:
             page.on("response", intercept)
 
-        await page.goto(url)
+        await page.goto(url, timeout=page_timeout)
 
-        # Save cookies after successful page load
-        try:
-            cookies = await context.cookies()
-            # Set expiry to far future for persistent cookies
-            for cookie in cookies:
-                if "expires" in cookie:
-                    cookie["expires"] = int(
-                        time.time() + 10 * 365 * 24 * 60 * 60
-                    )  # 10 years
-            with open(cookies_file, "w") as f:
-                json.dump(cookies, f)
-        except Exception as e:
-            warn(f"Failed to save cookies: {e}")
+        if use_cookies:  # Save cookies after successful page load
+            try:
+                cookies = await context.cookies()
+                for cookie in cookies:
+                    if "expires" in cookie:
+                        cookie["expires"] = int(
+                            time.time() + 10 * 365 * 24 * 60 * 60
+                        )  # set to 10 years to make it persistent
+                with open(cookies_file, "w") as f:
+                    json.dump(cookies, f)
+            except Exception as e:
+                warn(f"Failed to save cookies: {e}")
 
         content = await page.content()
         soup = BeautifulSoup(content, "html.parser")
