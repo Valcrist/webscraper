@@ -47,13 +47,14 @@ async def run_playwright(
     save_images: Optional[str] = None,
     firefox: bool = True,
     headless: bool = True,
-    no_close: bool = False,
+    close_browser: bool = True,
     use_cookies: bool = False,
     page_timeout: int = 90000,
+    volume: float = 0.0,  # mute
 ) -> BeautifulSoup | None:
     try:
         ua = UserAgent()
-        if not firefox:
+        if firefox:
             firefox_ua = ua.firefox
             browser = await playwright.firefox.launch(
                 headless=headless,
@@ -65,6 +66,7 @@ async def run_playwright(
                     "dom.navigator.hardwareConcurrency": 8,
                     "dom.maxHardwareConcurrency": 8,
                     "media.peerconnection.enabled": False,
+                    "media.volume_scale": str(volume),
                 },
             )
             context = await browser.new_context(
@@ -97,6 +99,7 @@ async def run_playwright(
                 permissions=["geolocation"],
                 color_scheme="dark",
                 reduced_motion="reduce",
+                media_volume_scale=volume,
             )
 
         if use_cookies:
@@ -172,8 +175,10 @@ async def run_playwright(
 
         content = await page.content()
         soup = BeautifulSoup(content, "html.parser")
-        if not no_close:
+        if close_browser:
             await browser.close()
+        else:
+            time.sleep(30)
         return soup
 
     except Exception as e:
