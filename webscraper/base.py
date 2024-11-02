@@ -292,7 +292,16 @@ def save_to_cache(path: str, soup: BeautifulSoup) -> None:
 
 
 def scrape(
-    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = True
+    url: str,
+    save_images: bool = True,
+    exp: int = _CACHE_EXP,
+    firefox: bool = True,
+    headless: bool = True,
+    close_browser: bool = True,
+    use_cookies: bool = False,
+    page_timeout: int = 30000,
+    idle_wait: int = 30000,
+    volume: float = 0.0,  # mute
 ) -> tuple[BeautifulSoup | None, str, str]:
     print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
@@ -303,7 +312,19 @@ def scrape(
     debug(cache_path, "cache path", lvl=3)
     soup = load_from_cache(cache_path, exp=exp)
     if soup is None:
-        soup = asyncio.run(run_scraper(url, save_images=image_path, firefox=firefox))
+        soup = asyncio.run(
+            run_scraper(
+                url,
+                save_images=image_path,
+                firefox=firefox,
+                headless=headless,
+                close_browser=close_browser,
+                use_cookies=use_cookies,
+                page_timeout=page_timeout,
+                idle_wait=idle_wait,
+                volume=volume,
+            )
+        )
         if soup:
             save_to_cache(cache_path, soup)
     if save_images:
@@ -312,7 +333,16 @@ def scrape(
 
 
 async def async_scrape(
-    url: str, save_images: bool = True, exp: int = _CACHE_EXP, firefox: bool = True
+    url: str,
+    save_images: bool = True,
+    exp: int = _CACHE_EXP,
+    firefox: bool = True,
+    headless: bool = True,
+    close_browser: bool = True,
+    use_cookies: bool = False,
+    page_timeout: int = 30000,
+    idle_wait: int = 30000,
+    volume: float = 0.0,  # mute
 ) -> tuple[BeautifulSoup | None, str, str]:
     print(f"URL to scrape: {url}")
     cache_path = fs.build_path([hash_str(url)], basedir=_CACHE_DIR)
@@ -323,7 +353,17 @@ async def async_scrape(
     debug(cache_path, "cache path", lvl=3)
     soup = load_from_cache(cache_path, exp=exp)
     if soup is None:
-        soup = await run_scraper(url, save_images=image_path, firefox=firefox)
+        soup = await run_scraper(
+            url,
+            save_images=image_path,
+            firefox=firefox,
+            headless=headless,
+            close_browser=close_browser,
+            use_cookies=use_cookies,
+            page_timeout=page_timeout,
+            idle_wait=idle_wait,
+            volume=volume,
+        )
         if soup:
             save_to_cache(cache_path, soup)
     if save_images:
