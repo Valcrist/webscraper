@@ -7,7 +7,7 @@ import toolbox.fs as fs
 from typing import Optional
 from pathlib import Path
 from urllib.parse import urlparse
-from fake_useragent import UserAgent
+from fake_useragent import FakeUserAgent
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, Response
 from toolbox.dot_env import get_env
@@ -53,9 +53,9 @@ async def run_playwright(
     volume: float = 0.0,  # mute
 ) -> BeautifulSoup | None:
     try:
-        ua = UserAgent()
         if firefox:
-            firefox_ua = ua.firefox
+            ua = FakeUserAgent(browsers=["firefox"], os=["windows"])
+            firefox_ua = ua.random
             browser = await playwright.firefox.launch(
                 headless=headless,
                 firefox_user_prefs={
@@ -65,8 +65,15 @@ async def run_playwright(
                     "general.useragent.override": firefox_ua,
                     "dom.navigator.hardwareConcurrency": 8,
                     "dom.maxHardwareConcurrency": 8,
+                    "dom.webdriver.enabled": False,
+                    "webgl.disabled": False,
+                    "canvas.capturestream.enabled": True,
+                    "privacy.webdriver.enabled": False,
                     "media.peerconnection.enabled": False,
                     "media.volume_scale": str(volume),
+                    "media.navigator.enabled": True,
+                    "media.autoplay.default": 0,
+                    "media.autoplay.blocking_policy": 0,
                 },
             )
             context = await browser.new_context(
@@ -79,7 +86,8 @@ async def run_playwright(
                 reduced_motion="reduce",
             )
         else:
-            chrome_ua = ua.chrome
+            ua = FakeUserAgent(browsers=["chrome"], os=["windows"])
+            chrome_ua = ua.random
             browser = await playwright.chromium.launch(
                 headless=headless,
                 args=[
@@ -88,6 +96,11 @@ async def run_playwright(
                     f"--user-agent={chrome_ua}",
                     "--disable-dev-shm-usage",
                     "--no-sandbox",
+                    "--enable-webgl",
+                    "--enable-audio-service",
+                    "--window-size=1920,1080",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-features=IsolateOrigins,site-per-process",
                 ],
             )
             context = await browser.new_context(
@@ -101,7 +114,6 @@ async def run_playwright(
                 reduced_motion="reduce",
                 media_volume_scale=volume,
             )
-
         if use_cookies:
             domain = urlparse(url).netloc
             cookies_file = Path(f"cache/_cookies/{domain}_cookies.json")
@@ -113,24 +125,55 @@ async def run_playwright(
                     await context.add_cookies(cookies)
                 except Exception as e:
                     warn(f"Failed to load cookies: {e}")
-
         page = await context.new_page()
-        # Enhanced stealth mode
-        await context.add_init_script(
-            """
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => false,
-            });
-            const newProto = navigator.__proto__;
-            delete newProto.webdriver;
-            navigator.__proto__ = newProto;
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5],
-            });
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en'],
-            });
+        firefox_script = """
+            const overrides = {
+                webdriver: false,
+                languages: ['en-US', 'en'],
+                plugins: [],  // Firefox typically has empty plugins
+                mimeTypes: [],
+                webglVendor: "Mozilla",
+                webglRenderer: "Mozilla",
+                hardwareConcurrency: 8,
+                deviceMemory: 8,
+                platform: "Win32",
+            };
         """
+        chrome_script = """
+            const overrides = {
+                webdriver: false,
+                languages: ['en-US', 'en'],
+                plugins: [
+                    [{ description: "PDF Viewer", filename: "internal-pdf-viewer" }],
+                    [{ description: "Chrome PDF Viewer", filename: "chrome-pdf-viewer" }],
+                    [{ description: "Chromium PDF Viewer", filename: "chromium-pdf-viewer" }]
+                ],
+                webglVendor: "Google Inc. (Intel)",
+                webglRenderer: "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)",
+                hardwareConcurrency: 8,
+                deviceMemory: 8,
+                platform: "Win32",
+            };
+        """
+        base_script = """
+            Object.defineProperties(navigator, {
+                ...Object.fromEntries(
+                    Object.entries(overrides).map(([key, value]) => [
+                        key,
+                        { get: () => value }
+                    ])
+                )
+            });
+            delete navigator.__proto__.webdriver;
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                Promise.resolve({ state: Notification.permission }) :
+                originalQuery(parameters)
+            );
+        """
+        await context.add_init_script(
+            (firefox_script if firefox else chrome_script) + base_script
         )
 
         async def intercept(
@@ -157,9 +200,15 @@ async def run_playwright(
 
         if save_images:
             page.on("response", intercept)
-
-        await page.goto(url, timeout=page_timeout)
-
+        await page.goto(
+            url,
+            timeout=page_timeout,
+            wait_until="domcontentloaded",  # Less strict than 'load'
+        )
+        try:
+            await page.wait_for_load_state("networkidle", timeout=30000)
+        except:
+            print(f"{url} - Network idle timeout; continuing anyway")
         if use_cookies:  # Save cookies after successful page load
             try:
                 cookies = await context.cookies()
@@ -172,7 +221,6 @@ async def run_playwright(
                     json.dump(cookies, f)
             except Exception as e:
                 warn(f"Failed to save cookies: {e}")
-
         content = await page.content()
         soup = BeautifulSoup(content, "html.parser")
         if close_browser:
@@ -180,7 +228,6 @@ async def run_playwright(
         else:
             time.sleep(30)
         return soup
-
     except Exception as e:
         err(e)
         warn(exc())
