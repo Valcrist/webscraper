@@ -7,6 +7,7 @@ import toolbox.fs as fs
 from typing import Optional
 from pathlib import Path
 from urllib.parse import urlparse
+from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, Response
 from toolbox.dot_env import get_env
@@ -51,38 +52,51 @@ async def run_playwright(
     page_timeout: int = 90000,
 ) -> BeautifulSoup | None:
     try:
+        ua = UserAgent()
         if not firefox:
-            browser = await playwright.chromium.launch(
-                headless=headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-features=IsolateOrigins,site-per-process",
-                ],
-            )
-            context = await browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                locale="en-US",
-                timezone_id="Asia/Singapore",
-                geolocation={"latitude": 1.3521, "longitude": 103.8198},
-                permissions=["geolocation"],
-            )
-        else:
+            firefox_ua = ua.firefox
             browser = await playwright.firefox.launch(
                 headless=headless,
                 firefox_user_prefs={
                     "privacy.webdriver.enabled": False,
                     "dom.webdriver.enabled": False,
                     "media.navigator.enabled": True,
+                    "general.useragent.override": firefox_ua,
                     "dom.navigator.hardwareConcurrency": 8,
-                    "general.useragent.override": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+                    "dom.maxHardwareConcurrency": 8,
+                    "media.peerconnection.enabled": False,
                 },
             )
             context = await browser.new_context(
                 viewport={"width": 1920, "height": 1080},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                user_agent=firefox_ua,
                 has_touch=True,
                 locale="en-US",
                 timezone_id="Asia/Singapore",
+                color_scheme="dark",
+                reduced_motion="reduce",
+            )
+        else:
+            chrome_ua = ua.chrome
+            browser = await playwright.chromium.launch(
+                headless=headless,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    f"--user-agent={chrome_ua}",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                ],
+            )
+            context = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent=chrome_ua,
+                locale="en-US",
+                timezone_id="Asia/Singapore",
+                geolocation={"latitude": 1.3521, "longitude": 103.8198},
+                permissions=["geolocation"],
+                color_scheme="dark",
+                reduced_motion="reduce",
             )
 
         if use_cookies:

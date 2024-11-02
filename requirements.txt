@@ -3,3 +3,4 @@ playwright
 bs4
 aiohttp
 aiofiles
+fake-useragent
