@@ -115,14 +115,15 @@ async def run_playwright(
         # Enhanced stealth mode
         await context.add_init_script(
             """
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => false,
+            });
             const newProto = navigator.__proto__;
             delete newProto.webdriver;
             navigator.__proto__ = newProto;
-            
             Object.defineProperty(navigator, 'plugins', {
                 get: () => [1, 2, 3, 4, 5],
             });
-            
             Object.defineProperty(navigator, 'languages', {
                 get: () => ['en-US', 'en'],
             });
