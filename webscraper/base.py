@@ -240,12 +240,29 @@ async def run_playwright(
 
 
 async def run_scraper(
-    url: str, save_images: Optional[str] = None, firefox: bool = True
+    url: str,
+    save_images: Optional[str] = None,
+    firefox: bool = True,
+    headless: bool = True,
+    close_browser: bool = True,
+    use_cookies: bool = False,
+    page_timeout: int = 30000,
+    idle_wait: int = 30000,
+    volume: float = 0.0,  # mute
 ) -> BeautifulSoup | None:
     printc(f"Scraping: {url} ..", "bright_magenta", pad=0, no_nl=True)
     async with async_playwright() as playwright:
         return await run_playwright(
-            playwright, url, save_images=save_images, firefox=firefox
+            playwright,
+            url,
+            save_images=save_images,
+            firefox=firefox,
+            headless=headless,
+            close_browser=close_browser,
+            use_cookies=use_cookies,
+            page_timeout=page_timeout,
+            idle_wait=idle_wait,
+            volume=volume,
         )
 
 
