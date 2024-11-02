@@ -49,7 +49,8 @@ async def run_playwright(
     headless: bool = True,
     close_browser: bool = True,
     use_cookies: bool = False,
-    page_timeout: int = 90000,
+    page_timeout: int = 30000,
+    idle_wait: int = 30000,
     volume: float = 0.0,  # mute
 ) -> BeautifulSoup | None:
     try:
@@ -205,10 +206,14 @@ async def run_playwright(
             timeout=page_timeout,
             wait_until="domcontentloaded",  # Less strict than 'load'
         )
-        try:
-            await page.wait_for_load_state("networkidle", timeout=30000)
-        except:
-            print(f"{url} - Network idle timeout; continuing anyway")
+        if idle_wait > 0:
+            try:
+                await page.wait_for_load_state("networkidle", timeout=idle_wait)
+            except:
+                print(
+                    f"{url} - Network idle timeout ({idle_wait}ms); "
+                    "continuing anyway"
+                )
         if use_cookies:  # Save cookies after successful page load
             try:
                 cookies = await context.cookies()
