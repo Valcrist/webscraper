@@ -1,9 +1,12 @@
 import os
+import json
 import pickle
 import time
 import asyncio
 import toolbox.fs as fs
 from typing import Optional
+from pathlib import Path
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, Response
 from toolbox.dot_env import get_env
@@ -47,17 +50,66 @@ async def run_playwright(
 ) -> BeautifulSoup | None:
     try:
         if not firefox:
-            browser = await playwright.chromium.launch(headless=headless)
+            browser = await playwright.chromium.launch(
+                headless=headless,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                ],
+            )
+            context = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                locale="en-US",
+                timezone_id="Asia/Singapore",
+                geolocation={"latitude": 1.3521, "longitude": 103.8198},
+                permissions=["geolocation"],
+            )
         else:
-            browser = await playwright.firefox.launch(headless=headless)
-        context = await browser.new_context()
+            browser = await playwright.firefox.launch(
+                headless=headless,
+                firefox_user_prefs={
+                    "privacy.webdriver.enabled": False,
+                    "dom.webdriver.enabled": False,
+                    "media.navigator.enabled": True,
+                    "dom.navigator.hardwareConcurrency": 8,
+                    "general.useragent.override": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+                },
+            )
+            context = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                has_touch=True,
+                locale="en-US",
+                timezone_id="Asia/Singapore",
+            )
+
+        domain = urlparse(url).netloc
+        cookies_file = Path(f"cache/_cookies/{domain}_cookies.json")
+        cookies_file.parent.mkdir(exist_ok=True)
+        if cookies_file.exists():
+            try:
+                with open(cookies_file) as f:
+                    cookies = json.load(f)
+                await context.add_cookies(cookies)
+            except Exception as e:
+                warn(f"Failed to load cookies: {e}")
+
         page = await context.new_page()
-        await page.add_init_script(  # Enable stealth mode
+        # Enhanced stealth mode
+        await context.add_init_script(
             """
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => false,
+            const newProto = navigator.__proto__;
+            delete newProto.webdriver;
+            navigator.__proto__ = newProto;
+            
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
             });
-            """
+            
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en'],
+            });
+        """
         )
 
         async def intercept(
@@ -84,12 +136,29 @@ async def run_playwright(
 
         if save_images:
             page.on("response", intercept)
+
         await page.goto(url)
+
+        # Save cookies after successful page load
+        try:
+            cookies = await context.cookies()
+            # Set expiry to far future for persistent cookies
+            for cookie in cookies:
+                if "expires" in cookie:
+                    cookie["expires"] = int(
+                        time.time() + 10 * 365 * 24 * 60 * 60
+                    )  # 10 years
+            with open(cookies_file, "w") as f:
+                json.dump(cookies, f)
+        except Exception as e:
+            warn(f"Failed to save cookies: {e}")
+
         content = await page.content()
         soup = BeautifulSoup(content, "html.parser")
         if not no_close:
             await browser.close()
         return soup
+
     except Exception as e:
         err(e)
         warn(exc())
